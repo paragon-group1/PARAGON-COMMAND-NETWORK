@@ -1,1 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SISTEMAS EN LÍNEA · ACCESO</title>
+<meta name="description" content="Terminal de acceso a sistemas en línea. Canal cifrado.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="assets/logo.svg">
+<link rel="prefetch" href="terminal.html">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
 
+<div id="fx"></div>
+<div id="vig"></div>
+
+<header class="hud" data-in style="--d:.15s">
+  <div class="hud-left">
+    <span class="led"></span>
+    <span>SISTEMAS EN LÍNEA</span>
+  </div>
+  <div class="hud-right">
+    <span>v3.5.1</span>
+    <span id="hudClock">--:--:--</span>
+  </div>
+</header>
+
+<main class="core">
+  <!-- Reemplaza assets/logo.svg por tu logo (o cambia el src a assets/logo.png) -->
+  <div class="frame" data-in style="--d:.35s">
+    <img src="assets/logo.svg" alt="Logo" width="140" height="140">
+  </div>
+
+  <p class="tagline" data-in style="--d:.55s">ACCESO RESTRINGIDO · CANAL CIFRADO</p>
+
+  <button id="enterBtn" class="enter" data-in style="--d:.75s">ENTRAR</button>
+
+  <p class="hint" data-in style="--d:.95s">o presiona <kbd>ENTER</kbd></p>
+</main>
+
+<footer class="strip" data-in style="--d:1.1s">
+  <span>NODO&nbsp;01</span><span class="sep">/</span>
+  <span>UPLINK ESTABLE</span><span class="sep">/</span>
+  <span>AES-256-GCM</span>
+  <span class="push"></span>
+  <span id="lat">12 ms</span>
+</footer>
+
+<div id="overlay" aria-hidden="true">
+  <div id="frameHost"></div>
+  <p id="audioHint">CLIC PARA ACTIVAR AUDIO</p>
+  <button id="closeBtn" type="button">SALIR <span>ESC</span></button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
