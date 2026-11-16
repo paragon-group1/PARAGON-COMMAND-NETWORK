@@ -1,1 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>eDEX-UI</title>
+<style>
+:root{
+  --amber:#ff8f00; --amber2:#ffb300; --dim:#6b4a00; --grid:#3a2a00;
+  --label:#8a6a20; --ok:#4be07a; --err:#ff3b30; --cyan:#00e5ff;
+  --mono: ui-monospace,"SF Mono","Cascadia Mono","JetBrains Mono","Roboto Mono",Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#000;color:var(--amber);font-family:var(--mono);overflow:hidden;letter-spacing:.5px;}
+#viewport{position:relative;width:100%;height:100vh;min-height:600px;overflow:hidden;background:#000;}
+#stage{position:absolute;width:1600px;height:900px;transform-origin:0 0;background:#000;overflow:hidden;}
 
+#grid{position:absolute;inset:0;pointer-events:none;
+  background-image:repeating-linear-gradient(0deg,rgba(255,143,0,.06) 0 1px,transparent 1px 20px),
+                   repeating-linear-gradient(90deg,rgba(255,143,0,.06) 0 1px,transparent 1px 20px);
+  transition:opacity .9s linear;}
+#grid.half{opacity:.5;}
+
+#scanlines{position:absolute;inset:0;pointer-events:none;z-index:60;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 1px,rgba(0,0,0,.35) 1px 3px);}
+#vignette{position:absolute;inset:0;pointer-events:none;z-index:61;
+  background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 42%,rgba(0,0,0,.55) 100%);}
+#flicker{position:absolute;inset:0;pointer-events:none;z-index:62;background:#ff8f00;opacity:0;
+  animation:flick 7s infinite steps(1);}
+@keyframes flick{
+  0%{opacity:.012} 7%{opacity:.03} 8%{opacity:.008} 22%{opacity:.02}
+  23%{opacity:.004} 41%{opacity:.026} 42%{opacity:.01} 63%{opacity:.018}
+  64%{opacity:.005} 82%{opacity:.024} 83%{opacity:.009} 100%{opacity:.013}
+}
+
+/* ---------- GATE ---------- */
+#gate{position:absolute;inset:0;z-index:40;background:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+#gatetext{font-size:13px;letter-spacing:2px;color:var(--amber);animation:blink2 500ms steps(1) infinite;}
+@keyframes blink2{0%,49%{opacity:1}50%,100%{opacity:.15}}
+
+/* ---------- BOOT LOG ---------- */
+#log{position:absolute;left:0;bottom:0;width:62%;height:55%;z-index:20;display:none;
+  overflow:hidden;padding:8px 10px;font-size:11px;line-height:14px;color:var(--amber);
+  overflow-wrap:anywhere;text-align:left;}
+#log div{white-space:pre-wrap;overflow-wrap:anywhere;}
+
+/* ---------- TITLE ---------- */
+#title{position:absolute;inset:0;z-index:30;background:#000;display:none;align-items:center;justify-content:center;}
+#titlebox{position:relative;padding:6px 26px;color:var(--amber);border:5px solid transparent;
+  transition:background .08s linear,color .08s linear,border-color .08s linear;}
+#titletext{font-size:96px;font-weight:700;line-height:1.06;letter-spacing:2px;display:block;opacity:0;transition:opacity .1s linear;}
+#titlebox.visible #titletext{opacity:1;}
+#titlebox.filled{background:var(--amber);color:#000;border-bottom-color:var(--amber);}
+#titlebox.bordered{border-color:var(--amber);}
+#gwrap{position:absolute;inset:0;display:none;}
+#titlebox.glitch #gwrap{display:block;}
+#titlebox.glitch #titletext{opacity:0;}
+.gband,.gch{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:96px;font-weight:700;line-height:1.06;letter-spacing:2px;color:var(--amber);will-change:transform,clip-path;}
+.gch.red{color:#ff3b30;mix-blend-mode:screen;}
+.gch.cyan{color:#00e5ff;mix-blend-mode:screen;}
+.gnoise{position:absolute;left:0;right:0;height:2px;background:rgba(255,255,255,.45);}
+
+/* ---------- WELCOME ---------- */
+#welcome{position:absolute;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;
+  font-size:13px;letter-spacing:3px;color:var(--amber2);opacity:0;pointer-events:none;}
+
+/* ---------- UI ---------- */
+#ui{position:absolute;inset:0;z-index:10;display:grid;grid-template-rows:28px 1fr 240px;opacity:0;}
+#ui.live{opacity:1;}
+#topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 8px;
+  border-bottom:1px solid rgba(255,143,0,.4);font-size:10px;color:var(--label);}
+#tbcenter{color:var(--amber);text-align:center;}
+#tbright{text-align:right;display:flex;gap:14px;justify-content:flex-end;color:var(--amber2);}
+#tbclock{color:var(--amber2);}
+
+#main{display:grid;grid-template-columns:300px 1fr 300px;gap:8px;padding:8px;min-height:0;overflow:hidden;}
+#colL,#colR{display:flex;flex-direction:column;gap:8px;min-height:0;overflow:hidden;}
+
+.panel{border:1px solid var(--dim);padding:4px 6px;min-height:0;overflow:hidden;position:relative;
+  opacity:0;transition:opacity .5s linear;}
+.panel.in{opacity:1;}
+.plabel{font-size:10px;color:var(--label);border-bottom:1px solid var(--grid);padding-bottom:2px;
+  margin-bottom:3px;text-transform:uppercase;}
+.kv{display:flex;justify-content:space-between;gap:8px;font-size:10px;line-height:14px;color:var(--amber2);}
+.kv span:first-child{color:var(--label);}
+
+#clockDate{font-size:19px;line-height:22px;color:var(--amber);font-weight:700;}
+#clockTime{font-size:11px;color:var(--label);line-height:14px;}
+
+#cpuBars{display:flex;align-items:flex-end;gap:3px;height:66px;}
+#cpuBars i{flex:1;background:var(--amber);display:block;height:6px;min-height:2px;}
+#cpuBars i.hot{background:var(--err);}
+
+#ramTrack{height:9px;border:1px solid var(--dim);margin:3px 0;}
+#ramFill{height:100%;width:30%;background:var(--amber);}
+#ramVal{font-size:10px;color:var(--amber2);}
+
+#procs{font-size:10px;line-height:13px;}
+#procs .pr{display:flex;justify-content:space-between;gap:6px;color:var(--amber2);}
+#procs .pr b{color:var(--label);font-weight:400;}
+
+/* terminal */
+#center{border:1px solid var(--dim);display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  clip-path:inset(0 50% 0 50%);background:#000;}
+#tabs{display:flex;height:24px;flex:0 0 24px;border-bottom:1px solid rgba(255,143,0,.4);}
+.tab{font-size:10px;display:flex;align-items:center;padding:0 10px;border-right:1px solid var(--grid);color:var(--label);}
+.tab.active{background:var(--amber);color:#000;}
+#term{flex:1;min-height:0;padding:6px 8px;font-size:11px;line-height:14px;display:flex;flex-direction:column;overflow:hidden;}
+#buf{flex:1;overflow:hidden;overflow-wrap:anywhere;color:var(--amber);}
+#buf .b{font-weight:700;color:var(--amber2);}
+#buf .err{color:var(--err);}
+#buf .cy{color:var(--cyan);}
+#promptline{display:flex;align-items:center;gap:0;flex:0 0 14px;white-space:pre;}
+.ps1{color:var(--ok);}
+#cmdtext{color:var(--amber2);}
+#cursor{display:inline-block;width:7px;height:12px;background:var(--amber);margin-left:1px;
+  animation:blinkc 1s steps(1) infinite;}
+@keyframes blinkc{0%,49%{opacity:1}50%,100%{opacity:0}}
+
+/* network / globe */
+#netCanvas,#globeCanvas{display:block;width:100%;}
+#netTotals{display:flex;justify-content:space-between;font-size:10px;color:var(--label);}
+#netTotals b{color:var(--cyan);font-weight:400;}
+
+/* files */
+#pFiles{flex:1;display:flex;flex-direction:column;min-height:0;}
+#erows{flex:1;overflow:hidden;font-size:10px;line-height:14px;}
+.erow{display:flex;justify-content:space-between;gap:6px;opacity:0;transition:opacity .1s linear;
+  white-space:nowrap;overflow:hidden;color:var(--amber2);cursor:default;}
+.erow.in{opacity:1;}
+.erow.sel{background:rgba(255,143,0,.2);color:var(--amber);}
+.erow .nm{overflow:hidden;text-overflow:ellipsis;}
+.erow .sz{color:var(--label);}
+
+/* keyboard */
+#kbd{padding:6px 8px;display:flex;flex-direction:column;gap:4px;overflow:hidden;
+  border-top:1px solid rgba(255,143,0,.4);}
+.krow{display:flex;gap:4px;width:0;overflow:hidden;flex:0 0 30px;}
+.key{flex:0 0 auto;height:30px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--dim);font-size:10px;color:var(--amber2);cursor:pointer;user-select:none;}
+.key:hover{border-color:var(--amber);color:var(--amber);}
+.key.act{background:var(--amber);color:#000;border-color:var(--amber);}
+</style>
+</head>
+<body>
+<div id="viewport">
+ <div id="stage">
+  <div id="grid"></div>
+
+  <div id="ui">
+    <div id="topbar">
+      <div>eDEX-UI v3.5.1</div>
+      <div id="tbcenter">PANEL / SYSTEM</div>
+      <div id="tbright"><span id="tbbatt">[||||||||&nbsp;&nbsp;] 87%</span><span id="tbclock">00:00:00</span></div>
+    </div>
+    <div id="main">
+      <div id="colL">
+        <div class="panel" id="pClock">
+          <div class="plabel">Date / Time</div>
+          <div id="clockDate">--</div>
+          <div id="clockTime">--:--:--</div>
+        </div>
+        <div class="panel" id="pSys">
+          <div class="plabel">System</div>
+          <div class="kv"><span>host</span><span>edex-node-01</span></div>
+          <div class="kv"><span>kernel</span><span>6.8.4-edex</span></div>
+          <div class="kv"><span>uptime</span><span id="uptime">0s</span></div>
+          <div class="kv"><span>platform</span><span>x86_64 / UEFI</span></div>
+        </div>
+        <div class="panel" id="pHw">
+          <div class="plabel">Hardware</div>
+          <div class="kv"><span>cpu</span><span>i7-9750H</span></div>
+          <div class="kv"><span>cores</span><span>8 / 12 thr</span></div>
+          <div class="kv"><span>gpu</span><span>UHD 630</span></div>
+          <div class="kv"><span>display</span><span>1600x900</span></div>
+        </div>
+        <div class="panel" id="pCpu">
+          <div class="plabel">CPU / Core load</div>
+          <div id="cpuBars"></div>
+        </div>
+        <div class="panel" id="pRam">
+          <div class="plabel">Memory</div>
+          <div id="ramTrack"><div id="ramFill"></div></div>
+          <div id="ramVal">0 MB / 16384 MB</div>
+        </div>
+        <div class="panel" id="pProcs">
+          <div class="plabel">Top processes</div>
+          <div id="procs"></div>
+        </div>
+      </div>
+
+      <div id="center">
+        <div id="tabs">
+          <div class="tab active">TERMINAL</div>
+          <div class="tab">EMPTY</div>
+          <div class="tab">EMPTY</div>
+          <div class="tab">EMPTY</div>
+          <div class="tab">EMPTY</div>
+        </div>
+        <div id="term">
+          <div id="buf"></div>
+          <div id="promptline"><span class="ps1">user@edex:~$&nbsp;</span><span id="cmdtext"></span><span id="cursor"></span></div>
+        </div>
+      </div>
+
+      <div id="colR">
+        <div class="panel" id="pNet">
+          <div class="plabel">Network traffic</div>
+          <canvas id="netCanvas" width="280" height="62"></canvas>
+          <div id="netTotals"><span>DN <b id="dnTot">0 B</b></span><span>UP <b id="upTot">0 B</b></span></div>
+        </div>
+        <div class="panel" id="pGlobe">
+          <div class="plabel">Global link</div>
+          <canvas id="globeCanvas" width="280" height="150"></canvas>
+        </div>
+        <div class="panel" id="pConn">
+          <div class="plabel">Connection</div>
+          <div class="kv"><span>local</span><span>192.168.1.42</span></div>
+          <div class="kv"><span>public</span><span id="pubIp">5.100.98.75</span></div>
+          <div class="kv"><span>link</span><span style="color:var(--ok)">UP</span></div>
+          <div class="kv"><span>cipher</span><span>AES-256-GCM</span></div>
+        </div>
+        <div class="panel" id="pFiles">
+          <div class="plabel">Filesystem</div>
+          <div id="erows"></div>
+        </div>
+      </div>
+    </div>
+    <div id="kbd"></div>
+  </div>
+
+  <div id="log"></div>
+
+  <div id="title">
+    <div id="titlebox">
+      <span id="titletext">eDEX-UI</span>
+      <div id="gwrap"></div>
+    </div>
+  </div>
+
+  <div id="welcome">Welcome back, user</div>
+
+  <div id="gate"><div id="gatetext">CLICK TO INITIALIZE</div></div>
+
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+  <div id="flicker"></div>
+ </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============ refs ============ */
+const $ = id => document.getElementById(id);
+const stage=$('stage'), viewport=$('viewport'), grid=$('grid');
+const gate=$('gate'), logEl=$('log'), title=$('title'), titlebox=$('titlebox'), titletext=$('titletext'), gwrap=$('gwrap');
+const ui=$('ui'), center=$('center'), welcome=$('welcome'), kbd=$('kbd');
+const buf=$('buf'), cmdtext=$('cmdtext');
+const tbclock=$('tbclock'), tbbatt=$('tbbatt'), uptimeEl=$('uptime');
+const clockDate=$('clockDate'), clockTime=$('clockTime');
+const cpuBars=$('cpuBars'), ramFill=$('ramFill'), ramVal=$('ramVal'), procsEl=$('procs'), erows=$('erows');
+const netCanvas=$('netCanvas'), globeCanvas=$('globeCanvas'), dnTot=$('dnTot'), upTot=$('upTot');
+
+/* ============ scale ============ */
+function fit(){
+  const w=viewport.clientWidth||1600, h=viewport.clientHeight||900;
+  const s=Math.min(w/1600,h/900);
+  stage.style.transform='scale('+s+')';
+  stage.style.left=Math.round((w-1600*s)/2)+'px';
+  stage.style.top=Math.round((h-900*s)/2)+'px';
+}
+
+/* ============ timers / loops ============ */
+const timers=[], intervals=[];
+function setT(fn,ms){ const id=setTimeout(()=>{ try{fn();}catch(e){} },ms); timers.push(id); return id; }
+function setI(fn,ms){ const id=setInterval(()=>{ try{fn();}catch(e){} },ms); intervals.push(id); return id; }
+function clearAll(){
+  for(let i=0;i<timers.length;i++) clearTimeout(timers[i]); timers.length=0;
+  for(let i=0;i<intervals.length;i++) clearInterval(intervals[i]); intervals.length=0;
+}
+const loops=[];
+let paused=false, rafId=null;
+function frame(t){
+  if(!paused){ for(let i=0;i<loops.length;i++){ try{ loops[i](t); }catch(e){} } }
+  rafId=requestAnimationFrame(frame);
+}
+
+/* ============ audio ============ */
+const A={ctx:null,master:null,comp:null,verb:null,verbGain:null,noise:null,ok:false};
+function makeImpulse(ctx,dur){
+  const len=Math.floor(ctx.sampleRate*dur), b=ctx.createBuffer(2,len,ctx.sampleRate);
+  for(let c=0;c<2;c++){ const d=b.getChannelData(c);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6); }
+  return b;
+}
+function initAudio(){
+  if(A.ctx){ if(A.ctx.state==='suspended'){ try{A.ctx.resume();}catch(e){} } return; }
+  try{
+    const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+    A.ctx=new C();
+    A.master=A.ctx.createGain(); A.master.gain.value=1;
+    A.comp=A.ctx.createDynamicsCompressor();
+    A.comp.threshold.value=-18; A.comp.ratio.value=4; A.comp.knee.value=6;
+    A.comp.attack.value=0.003; A.comp.release.value=0.15;
+    A.master.connect(A.comp); A.comp.connect(A.ctx.destination);
+    A.verb=A.ctx.createConvolver(); A.verb.buffer=makeImpulse(A.ctx,0.6);
+    A.verbGain=A.ctx.createGain(); A.verbGain.gain.value=0.22;
+    A.verb.connect(A.verbGain); A.verbGain.connect(A.comp);
+    const len=Math.floor(A.ctx.sampleRate*0.4);
+    A.noise=A.ctx.createBuffer(1,len,A.ctx.sampleRate);
+    const d=A.noise.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    A.ok=true;
+    if(A.ctx.state==='suspended') A.ctx.resume();
+  }catch(e){ A.ok=false; }
+}
+function play(fn){ if(!A.ok||!A.ctx) return; try{ fn(A.ctx,A.master); }catch(e){} }
+function kill(list){ return ()=>{ try{ for(const n of list){ n.disconnect(); } }catch(e){} }; }
+function srcNoise(ctx){ const s=ctx.createBufferSource(); s.buffer=A.noise; return s; }
+
+const SFX={
+  stdout(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    const o=ctx.createOscillator(); o.type='square'; o.frequency.value=1800;
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=6000;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.03,t+0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.008);
+    const vg=ctx.createGain(); vg.gain.value=0.05;
+    o.connect(lp); lp.connect(g); g.connect(vg); vg.connect(out);
+    o.start(t); o.stop(t+0.02);
+    o.onended=kill([o,lp,g,vg]);
+  }); },
+  granted(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(0.08,t+0.02); g.gain.linearRampToValueAtTime(0,t+0.14);
+    g.connect(out);
+    [660,1320].forEach((f,i)=>{ const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=f;
+      const eg=ctx.createGain(); eg.gain.value=i?0.6:1;
+      o.connect(eg); eg.connect(g); o.start(t); o.stop(t+0.15);
+      o.onended=kill([o,eg]); });
+    setTimeout(kill([g]),300);
+  }); },
+  theme(){ play((ctx,out)=>{
+    const t0=ctx.currentTime+0.02;
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass';
+    lp.frequency.setValueAtTime(400,t0); lp.frequency.exponentialRampToValueAtTime(4000,t0+0.9);
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t0);
+    g.gain.linearRampToValueAtTime(0.1,t0+0.03);
+    g.gain.setValueAtTime(0.1,t0+0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+1.05);
+    lp.connect(g); g.connect(out); g.connect(A.verb);
+    [110,165].forEach(f=>{ const o=ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+      o.connect(lp); o.start(t0); o.stop(t0+1.1); o.onended=kill([o]); });
+    const n=srcNoise(ctx); const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=1.4;
+    bp.frequency.setValueAtTime(200,t0+0.3); bp.frequency.exponentialRampToValueAtTime(6000,t0+0.9);
+    const ng=ctx.createGain(); ng.gain.setValueAtTime(0.0001,t0+0.3);
+    ng.gain.linearRampToValueAtTime(0.07,t0+0.36); ng.gain.exponentialRampToValueAtTime(0.0001,t0+0.9);
+    const pan=ctx.createStereoPanner(); pan.pan.value=Math.random()*1.6-0.8;
+    n.connect(bp); bp.connect(ng); ng.connect(pan); pan.connect(out); pan.connect(A.verb);
+    n.start(t0+0.3); n.stop(t0+0.92); n.onended=kill([n,bp,ng,pan]);
+    const sub=ctx.createOscillator(); sub.type='sine'; sub.frequency.value=55;
+    const sg=ctx.createGain(); sg.gain.setValueAtTime(0.0001,t0+1.0);
+    sg.gain.linearRampToValueAtTime(0.16,t0+1.02); sg.gain.exponentialRampToValueAtTime(0.0001,t0+1.4);
+    sub.connect(sg); sg.connect(out); sub.start(t0+1.0); sub.stop(t0+1.45); sub.onended=kill([sub,sg]);
+    [880,1320].forEach((f,i)=>{ const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=f;
+      const og=ctx.createGain(); og.gain.setValueAtTime(0.0001,t0+1.5+i*0.14);
+      og.gain.linearRampToValueAtTime(0.05,t0+1.52+i*0.14);
+      og.gain.exponentialRampToValueAtTime(0.0001,t0+1.68+i*0.14);
+      o.connect(og); og.connect(out); og.connect(A.verb); o.start(t0+1.5+i*0.14); o.stop(t0+1.7+i*0.14);
+      o.onended=kill([o,og]); });
+    setTimeout(kill([lp,g]),2400);
+  }); },
+  expand(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    const n=srcNoise(ctx); const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=2;
+    bp.frequency.setValueAtTime(300,t); bp.frequency.exponentialRampToValueAtTime(3000,t+0.2);
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.06,t+0.03); g.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
+    n.connect(bp); bp.connect(g); g.connect(out);
+    n.start(t); n.stop(t+0.22); n.onended=kill([n,bp,g]);
+  }); },
+  keyboard(){ play((ctx,out)=>{
+    const t0=ctx.currentTime;
+    for(let i=0;i<5;i++){
+      const t=t0+i*0.06;
+      const n=srcNoise(ctx); const lp=ctx.createBiquadFilter(); lp.type='lowpass';
+      lp.frequency.value=4200-i*600;
+      const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t);
+      g.gain.linearRampToValueAtTime(0.05,t+0.002); g.gain.exponentialRampToValueAtTime(0.0001,t+0.012);
+      n.connect(lp); lp.connect(g); g.connect(out);
+      n.start(t); n.stop(t+0.015); n.onended=kill([n,lp,g]);
+    }
+  }); },
+  panels(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=440;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.03,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.04);
+    o.connect(g); g.connect(out); g.connect(A.verb);
+    o.start(t); o.stop(t+0.05); o.onended=kill([o,g]);
+  }); },
+  folder(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    const n=srcNoise(ctx); const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2000;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.04,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.06);
+    n.connect(hp); hp.connect(g); g.connect(out);
+    n.start(t); n.stop(t+0.07); n.onended=kill([n,hp,g]);
+  }); },
+  key(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    const n=srcNoise(ctx); const g1=ctx.createGain(); g1.gain.setValueAtTime(0.0001,t);
+    g1.gain.linearRampToValueAtTime(0.035,t+0.001); g1.gain.exponentialRampToValueAtTime(0.0001,t+0.006);
+    n.connect(g1); g1.connect(out); n.start(t); n.stop(t+0.008); n.onended=kill([n,g1]);
+    const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=900;
+    const g2=ctx.createGain(); g2.gain.setValueAtTime(0.0001,t);
+    g2.gain.linearRampToValueAtTime(0.04,t+0.001); g2.gain.exponentialRampToValueAtTime(0.0001,t+0.006);
+    o.connect(g2); g2.connect(out); o.start(t); o.stop(t+0.008); o.onended=kill([o,g2]);
+  }); },
+  enter(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=520;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.06,t+0.002); g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t+0.06); o.onended=kill([o,g]);
+  }); },
+  denied(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    [[220,0],[180,0.06]].forEach(([f,d])=>{
+      const o=ctx.createOscillator(); o.type='square'; o.frequency.value=f;
+      const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t+d);
+      g.gain.linearRampToValueAtTime(0.05,t+d+0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+d+0.06);
+      o.connect(g); g.connect(out); o.start(t+d); o.stop(t+d+0.07); o.onended=kill([o,g]);
+    });
+  }); },
+  alarm(){ play((ctx,out)=>{
+    const t=ctx.currentTime;
+    const o=ctx.createOscillator(); o.type='square'; o.frequency.value=440;
+    const lfo=ctx.createOscillator(); lfo.type='square'; lfo.frequency.value=8;
+    const lg=ctx.createGain(); lg.gain.value=70;
+    lfo.connect(lg); lg.connect(o.frequency);
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.05,t+0.01);
+    g.gain.setValueAtTime(0.05,t+0.35); g.gain.exponentialRampToValueAtTime(0.0001,t+0.4);
+    o.connect(g); g.connect(out); o.start(t); lfo.start(t); o.stop(t+0.42); lfo.stop(t+0.42);
+    o.onended=kill([o,lfo,lg,g]);
+  }); }
+};
+
+/* ============ boot log data ============ */
+const LOG=[
+"Welcome to eDEX-UI!",
+"vm_page_bootstrap: 987323 free pages and 53061 wired pages",
+"kext submap [0xffffff7f8072e000 - 0xffffff8000000000], kernel text [0xffffff8000200000 - 0xffffff800072e000]",
+"zone leak detection enabled",
+"standard timeslicing quantum is 10000 us",
+"mig_table_max_displ = 72",
+"TSC Deadline Timer supported and enabled",
+"eDEXACPICPU: ProcessorId=1 LocalApicId=0 Enabled",
+"eDEXACPICPU: ProcessorId=2 LocalApicId=2 Enabled",
+"eDEXACPICPU: ProcessorId=3 LocalApicId=1 Enabled",
+"eDEXACPICPU: ProcessorId=4 LocalApicId=3 Enabled",
+"eDEXACPICPU: ProcessorId=5 LocalApicId=255 Disabled",
+"eDEXACPICPU: ProcessorId=6 LocalApicId=255 Disabled",
+"eDEXACPICPU: ProcessorId=7 LocalApicId=255 Disabled",
+"eDEXACPICPU: ProcessorId=8 LocalApicId=255 Disabled",
+"calling mpo_policy_init for TMSafetyNet",
+"Security policy loaded: Safety net for Rollback (TMSafetyNet)",
+"calling mpo_policy_init for Sandbox",
+"Security policy loaded: Seatbelt sandbox policy (Sandbox)",
+"calling mpo_policy_init for Quarantine",
+"Security policy loaded: Quarantine policy (Quarantine)",
+"Copyright (c) 1982, 1986, 1989, 1991, 1993, 2015",
+"The Regents of the University of Adelaide. All rights reserved.",
+"HN_ Framework successfully initialized",
+"using 16384 buffer headers and 10240 cluster IO buffer headers",
+"IOAPIC: Version 0x20 Vectors 64:87",
+"ACPI: System State [S0 S3 S4 S5] (S3)",
+"PFM64 0xf10000000, 0xf0000000",
+"[ PCI configuration begin ]",
+"eDEXIntelCPUPowerManagement: Turbo Ratios 0046",
+"eDEXIntelCPUPowerManagement: (built 13:08:12 Jun 18 2011) initialization complete",
+"console relocated to 0xf10000000",
+"PCI configuration changed (bridge=16 device=4 cardbus=0)",
+"[ PCI configuration end, bridges 12 devices 16 ]",
+"mbinit: done [64 MB total pool size, (42/21) split]",
+"Pthread support ABORTS when sync kernel primitives misused",
+"com.eDEX.eDEXFSCompressionTypeZlib kmod start",
+"com.eDEX.eDEXTrololoBootScreen kmod start",
+"com.eDEX.eDEXFSCompressionTypeZlib load succeeded",
+"com.eDEX.eDEXFSCompressionTypeDataless load succeeded",
+"eDEXIntelCPUPowerManagementClient: ready",
+"BTCOEXIST off",
+"wl0: Broadcom BCM4331 802.11 Wireless Interface",
+"5.100.98.75",
+"FireWire (OHCI) Lucent ID 5901 built-in now active, GUID c82a14fffee4a086; max speed s800.",
+"rooting via boot-uuid from /chosen: F5670083-AC74-33D3-8361-AC1977EE4AA2",
+'Waiting on <dict ID="0"><key>IOProviderClass</key><string ID="1">',
+'IOResources</string><key>IOResourceMatch</key><string ID="2">boot-uuid-media</string></dict>',
+"Got boot device = IOService:/eDEXACPIPlatformExpert/PCI0@0/eDEXACPIPCI/SATA@1F,2/",
+"eDEXIntelPchSeriesAHCI/PRT0@0/IOAHCIDevice@0/eDEXAHCIDiskDriver/SarahI@sTheBestDriverIOAHCIBlockStorageDevice/IOBlockStorageDriver/",
+"eDEX SSD TS128C Media/IOGUIDPartitionScheme/Customer@2",
+"BSD root: disk0s2, major 14, minor 2",
+"Kernel is LP64",
+"IOThunderboltSwitch::i2cWriteDWord - status = 0xe00002ed",
+"IOThunderboltSwitch::i2cWriteDWord - status = 0x00000000",
+"IOThunderboltSwitch::i2cWriteDWord - status = 0xe00002ed",
+"IOThunderboltSwitch::i2cWriteDWord - status = 0xe00002ed",
+"eDEXUSBMultitouchDriver::checkStatus - received Status Packet, Payload 2: device was reinitialized",
+"MottIsAScrub::checkstatus - true, Mott::Scrub",
+"[IOBluetoothHCIController::setConfigState] calling registerService",
+"AirPort_Brcm4331: Ethernet address e4:ce:8f:46:18:d2",
+"IO80211Controller::dataLinkLayerAttachComplete():  adding eDEXEFINVRAM notification",
+"IO80211Interface::efiNVRAMPublished():",
+"Created virtif 0xffffff800c32ee00 p2p0",
+"BCM5701Enet: Ethernet address c8:2a:14:57:a4:7a",
+"Previous Shutdown Cause: 3",
+"NTFS driver 3.8 [Flags: R/W].",
+"NTFS volume name BOOTCAMP, version 3.1.",
+"DSMOS has arrived",
+"en1: 802.11d country code set to 'US'.",
+"en1: Supported channels 1 2 3 4 5 6 7 8 9 10 11 36 40 44 48 52 56 60 64 100 104 108 112 116 120 124 128 132 136 140 149 153 157 161 165",
+"m_thebest",
+"MacAuthEvent en1   Auth result for: 00:60:64:1e:e9:e4  MAC AUTH succeeded",
+"MacAuthEvent en1   Auth result for: 00:60:64:1e:e9:e4 Unsolicited  Auth",
+"wlEvent: en1 en1 Link UP",
+"AirPort: Link Up on en1",
+"en1: BSSID changed to 00:60:64:1e:e9:e4",
+"virtual bool IOHIDEventSystemUserClient::initWithTask(task*, void*, UInt32):",
+"Client task not privileged to open IOHIDSystem for mapping memory (e00002c1)",
+"Boot Complete"
+];
+const LAST=LOG.length-1;
+function delayFor(i){
+  if(i===0||i===1) return Math.pow(1-(i/1000),3)*25;
+  if(i===2) return 500;
+  if(i===LAST-2||i===LAST-1) return 300;
+  if(i>=5&&i<=24) return 30;
+  if(i===25) return 400;
+  if(i===42) return 300;
+  if(i>=43&&i<=81) return 25;
+  if(i===83) return 25;
+  return Math.pow(1-(i/1000),3)*25;
+}
+function printLine(txt){
+  const d=document.createElement('div');
+  d.textContent=txt;
+  logEl.appendChild(d);
+  logEl.scrollTop=logEl.scrollHeight;
+}
+
+/* ============ glitch ============ */
+let glitchOn=false, bands=[], chans=[], noises=[];
+function buildGlitch(){
+  if(gwrap.childElementCount) return;
+  const r=document.createElement('div'); r.className='gch red'; r.textContent='eDEX-UI';
+  const c=document.createElement('div'); c.className='gch cyan'; c.textContent='eDEX-UI';
+  gwrap.appendChild(r); gwrap.appendChild(c); chans=[r,c];
+  for(let i=0;i<6;i++){ const b=document.createElement('div'); b.className='gband'; b.textContent='eDEX-UI'; gwrap.appendChild(b); bands.push(b); }
+  for(let i=0;i<3;i++){ const n=document.createElement('div'); n.className='gnoise'; gwrap.appendChild(n); noises.push(n); }
+}
+loops.push(function(){
+  if(!glitchOn) return;
+  for(let i=0;i<bands.length;i++){
+    const top=Math.random()*100, h=4+Math.random()*14;
+    const dx=(Math.random()*48-24)|0;
+    bands[i].style.clipPath='inset('+top+'% 0 '+(100-top-h)+'% 0)';
+    bands[i].style.transform='translateX('+dx+'px)';
+  }
+  chans[0].style.transform='translateX(-4px)';
+  chans[1].style.transform='translateX(4px)';
+  for(let i=0;i<noises.length;i++){
+    noises[i].style.top=(Math.random()*100)+'%';
+    noises[i].style.transform='translateX('+((Math.random()*60-30)|0)+'px)';
+  }
+});
+function startGlitch(){ buildGlitch(); glitchOn=true; }
+function stopGlitch(){ glitchOn=false;
+  for(const b of bands){ b.style.clipPath='inset(0)'; b.style.transform='none'; }
+  for(const c of chans) c.style.transform='none';
+}
+
+/* ============ boot ============ */
+let booting=false, uiLive=false;
+function startBoot(){
+  if(booting) return; booting=true;
+  logEl.style.display='block';
+  let i=0;
+  function step(){
+    if(!booting) return;
+    if(i>LAST){ setT(phase2,300); return; }
+    printLine(LOG[i]);
+    if(i===2) printLine('eDEX-UI Kernel version 3.5.1 boot at '+new Date().toString()+'; root:xnu-1699.22.73~1/RELEASE_X86_64');
+    if(i===LAST) SFX.granted(); else SFX.stdout();
+    const d=delayFor(i);
+    i++;
+    setT(step,d);
+  }
+  setT(step,0);
+}
+
+/* ============ phase 2 ============ */
+function phase2(){
+  booting=false;
+  logEl.style.display='none';
+  logEl.textContent='';
+  SFX.theme();
+  title.style.display='flex';
+  setT(()=>{ titlebox.classList.add('visible'); },400);
+  setT(()=>{ titlebox.classList.add('filled'); },600);
+  setT(()=>{ titlebox.classList.add('bordered'); },700);
+  setT(()=>{ titlebox.classList.remove('filled','bordered'); titlebox.classList.add('glitch'); startGlitch(); },1000);
+  setT(()=>{ titlebox.classList.remove('glitch'); stopGlitch(); },1500);
+  setT(()=>{ title.style.display='none'; phase3(); },2500);
+}
+
+/* ============ phase 3 ============ */
+function phase3(){
+  ui.classList.add('live');
+  SFX.expand();
+  center.style.transition='none';
+  center.style.clipPath='inset(0 50% 0 50%)';
+  setT(()=>{ center.style.transition='clip-path .5s ease-out'; center.style.clipPath='inset(0 0 0 0)'; },20);
+  setT(()=>{ center.style.transition='none'; center.style.clipPath='inset(0 0 100% 0)'; },520);
+  setT(()=>{ center.style.transition='clip-path .5s ease-out'; center.style.clipPath='inset(0 0 0 0)'; },540);
+  setT(()=>{ SFX.keyboard(); expandKeyboard(); },1000);
+  setT(showWelcome,1000);
+  setT(panelsIn,1500);
+  setT(explorerIn,2100);
+  setT(()=>{ uiLive=true; startData(); grid.classList.add('half'); },6200);
+}
+function showWelcome(){
+  welcome.style.transition='opacity .5s linear';
+  welcome.style.opacity='1';
+  setT(()=>{ welcome.style.opacity='0'; },600);
+}
+const PANEL_ORDER=['pClock','pSys','pHw','pCpu','pRam','pProcs','pNet','pGlobe','pConn'];
+function panelsIn(){
+  PANEL_ORDER.forEach((id,k)=>{
+    setT(()=>{ const el=$(id); if(el) el.classList.add('in'); SFX.panels(); },k*500);
+  });
+}
+
+/* ============ keyboard ============ */
+const ROWS=[
+ {d:800,k:[['ESC',36,'esc'],['F1',36,''],['F2',36,''],['F3',36,''],['F4',36,''],['F5',36,''],['F6',36,''],['F7',36,''],['F8',36,''],['F9',36,''],['F10',36,''],['F11',36,''],['F12',36,'']]},
+ {d:600,k:[['`',36,'`'],['1',36,'1'],['2',36,'2'],['3',36,'3'],['4',36,'4'],['5',36,'5'],['6',36,'6'],['7',36,'7'],['8',36,'8'],['9',36,'9'],['0',36,'0'],['-',36,'-'],['=',36,'='],['BACKSPACE',110,'bksp']]},
+ {d:500,k:[['TAB',60,''],['q',36,'q'],['w',36,'w'],['e',36,'e'],['r',36,'r'],['t',36,'t'],['y',36,'y'],['u',36,'u'],['i',36,'i'],['o',36,'o'],['p',36,'p'],['[',36,'['],[']',36,']'],['\\',50,'\\']]},
+ {d:800,k:[['CAPS',76,''],['a',36,'a'],['s',36,'s'],['d',36,'d'],['f',36,'f'],['g',36,'g'],['h',36,'h'],['j',36,'j'],['k',36,'k'],['l',36,'l'],[';',36,';'],["'",36,"'"],['ENTER',104,'enter']]},
+ {d:600,k:[['SHIFT',96,''],['z',36,'z'],['x',36,'x'],['c',36,'c'],['v',36,'v'],['b',36,'b'],['n',36,'n'],['m',36,'m'],[',',36,','],['.',36,'.'],['/',36,'/'],['SHIFT',92,''],['UP',36,'']]},
+ {d:600,k:[['CTRL',60,''],['ALT',50,''],['SPACE',330,' '],['ALT',50,''],['CTRL',60,''],['LEFT',36,''],['DOWN',36,''],['RIGHT',36,'']]}
+];
+function buildKeyboard(){
+  ROWS.forEach(r=>{
+    const row=document.createElement('div'); row.className='krow';
+    r.k.forEach(([label,w,act])=>{
+      const k=document.createElement('div'); k.className='key'; k.style.width=w+'px'; k.textContent=label;
+      k.addEventListener('mousedown',ev=>{ ev.preventDefault(); pressKey(k,act,label); });
+      row.appendChild(k);
+    });
+    kbd.appendChild(row);
+  });
+}
+function expandKeyboard(){
+  const rows=kbd.children;
+  for(let i=0;i<rows.length;i++){
+    const dur=ROWS[i].d;
+    rows[i].style.transition='width '+dur+'ms ease-out';
+    rows[i].style.width='100%';
+  }
+}
+function pressKey(el,act,label){
+  el.classList.add('act');
+  setTimeout(()=>el.classList.remove('act'),70);
+  if(act==='enter'){ SFX.enter(); runCommand(); return; }
+  SFX.key();
+  if(act==='bksp'){ cmdtext.textContent=cmdtext.textContent.slice(0,-1); return; }
+  if(act==='esc'){ cmdtext.textContent=''; return; }
+  if(act==='') return;
+  if(cmdtext.textContent.length<120) cmdtext.textContent+=act;
+}
+
+/* ============ explorer ============ */
+const FILES=[
+ {d:0,g:'▣',n:'home',sz:''},{d:1,g:'▣',n:'user',sz:''},{d:2,g:'▣',n:'Documents',sz:''},
+ {d:3,g:'·',n:'resume.pdf',sz:'48,213 B'},{d:3,g:'·',n:'notes.txt',sz:'1,204 B'},{d:3,g:'▣',n:'archive',sz:''},
+ {d:2,g:'▣',n:'Downloads',sz:''},{d:3,g:'·',n:'edex-theme.zip',sz:'2,104,312 B'},{d:3,g:'·',n:'iso.tar.gz',sz:'812,004 B'},
+ {d:2,g:'▣',n:'Pictures',sz:''},{d:3,g:'·',n:'screenshot.png',sz:'244,118 B'},{d:3,g:'·',n:'grid.png',sz:'18,902 B'},
+ {d:2,g:'▣',n:'projects',sz:''},{d:3,g:'·',n:'main.js',sz:'9,441 B'},{d:3,g:'·',n:'package.json',sz:'812 B'},
+ {d:3,g:'·',n:'build.log',sz:'31,772 B'},{d:2,g:'▣',n:'.config',sz:''},{d:3,g:'·',n:'theme.json',sz:'640 B'},
+ {d:3,g:'·',n:'keybinds.json',sz:'1,102 B'},{d:1,g:'·',n:'.bashrc',sz:'3,201 B'},{d:1,g:'·',n:'.profile',sz:'807 B'},
+ {d:1,g:'·',n:'README.md',sz:'2,118 B'},{d:1,g:'·',n:'kernel.log',sz:'94,331 B'},{d:1,g:'·',n:'boot.log',sz:'12,884 B'}
+];
+function buildExplorer(){
+  FILES.forEach(f=>{
+    const r=document.createElement('div'); r.className='erow';
+    const nm=document.createElement('span'); nm.className='nm';
+    nm.textContent=f.g+' '+f.n; nm.style.paddingLeft=(f.d*10)+'px';
+    const sz=document.createElement('span'); sz.className='sz'; sz.textContent=f.sz;
+    r.appendChild(nm); r.appendChild(sz);
+    r.addEventListener('mousedown',()=>{
+      erows.querySelectorAll('.erow.sel').forEach(x=>x.classList.remove('sel'));
+      r.classList.add('sel');
+      if(f.g==='▣') SFX.folder(); else SFX.key();
+    });
+    erows.appendChild(r);
+  });
+}
+function explorerIn(){
+  const rows=erows.children;
+  for(let i=0;i<rows.length;i++){
+    setT(()=>{ rows[i].classList.add('in'); if(i%3===0) SFX.folder(); },i*100);
+  }
+}
+
+/* ============ terminal ============ */
+function line(txt,cls){
+  const d=document.createElement('div');
+  if(cls) d.className=cls;
+  d.textContent=txt;
+  buf.appendChild(d);
+  buf.scrollTop=buf.scrollHeight;
+}
+function runCommand(){
+  const cmd=cmdtext.textContent.trim();
+  line('user@edex:~$ '+cmd);
+  cmdtext.textContent='';
+  if(!cmd) return;
+  const parts=cmd.split(/\s+/), c=parts[0], args=parts.slice(1);
+  switch(c){
+    case 'help':
+      line('available: help ls cd whoami neofetch clear glitch reboot','cy'); break;
+    case 'ls':
+      line('Documents  Downloads  Pictures  projects  .bashrc  README.md'); break;
+    case 'cd':
+      if(!args[0]||args[0]==='~'||args[0]==='/home/user') line('~');
+      else if(FILES.some(f=>f.n===args[0])) line('cd: -> /home/user/'+args[0]);
+      else line('cd: no such directory: '+args[0],'err');
+      break;
+    case 'whoami': line('user'); break;
+    case 'neofetch':
+      line('      /\\      user@edex','cy');
+      line('     /  \\     ---------','cy');
+      line('    / /\\ \\    OS: eDEX-UI 3.5.1','cy');
+      line('   / ____ \\   Kernel: 6.8.4-edex','cy');
+      line('  /_/    \\_\\  Shell: edex-sh 1.2','cy');
+      line('              Uptime: '+uptimeEl.textContent,'cy');
+      break;
+    case 'clear': buf.textContent=''; break;
+    case 'glitch':
+      startGlitch(); SFX.alarm();
+      setT(()=>{ stopGlitch(); },500);
+      line('glitch injected','cy');
+      break;
+    case 'reboot':
+      SFX.alarm();
+      line('rebooting...','cy');
+      setT(restart,420);
+      break;
+    default: SFX.denied(); line('edex-sh: command not found: '+c,'err');
+  }
+}
+document.addEventListener('keydown',e=>{
+  if(!uiLive) return;
+  if(e.key==='Enter'){ SFX.enter(); runCommand(); e.preventDefault(); return; }
+  if(e.key==='Backspace'){ cmdtext.textContent=cmdtext.textContent.slice(0,-1); SFX.key(); e.preventDefault(); return; }
+  if(e.key==='Escape'){ cmdtext.textContent=''; return; }
+  if(e.key.length===1){ SFX.key(); if(cmdtext.textContent.length<120) cmdtext.textContent+=e.key; }
+});
+
+/* ============ canvases ============ */
+let netCtx=null, globeCtx=null;
+function fitCanvas(c,w,h){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
+  c.style.width=w+'px'; c.style.height=h+'px';
+  const ctx=c.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return ctx;
+}
+function initCanvases(){
+  netCtx=fitCanvas(netCanvas,280,62);
+  globeCtx=fitCanvas(globeCanvas,280,150);
+}
+
+/* ============ data ============ */
+function walk(v,step,min,max){ const n=v+(Math.random()-0.5)*2*step; return Math.max(min,Math.min(max,n)); }
+const cpu=new Array(8).fill(0).map(()=>8+Math.random()*25);
+const ram={v:5400};
+const net={up:Array.from({length:60},()=>Math.random()*8),dn:Array.from({length:60},()=>Math.random()*14),upT:0,dnT:0};
+const procs=[{pid:1247,n:'electron',v:12.4},{pid:1288,n:'node',v:7.1},{pid:902,n:'edex-render',v:5.8},
+  {pid:441,n:'Xorg',v:3.2},{pid:1180,n:'pulseaudio',v:2.4},{pid:655,n:'systemd',v:1.1}];
+let globeAng=0, lastDraw=0, batt=87, upSecs=0;
+const PINS=[{lat:40,lon:-74},{lat:51,lon:0},{lat:35,lon:139},{lat:-33,lon:151},{lat:19,lon:72}];
+
+function fmt(b){
+  if(b<1024) return b.toFixed(0)+' B';
+  if(b<1048576) return (b/1024).toFixed(1)+' KB';
+  return (b/1048576).toFixed(2)+' MB';
+}
+function startData(){
+  for(let i=0;i<8;i++){ const bar=document.createElement('i'); cpuBars.appendChild(bar); }
+  setI(()=>{
+    for(let i=0;i<cpu.length;i++) cpu[i]=walk(cpu[i],18,2,99);
+    for(let i=0;i<cpuBars.children.length;i++){
+      const v=cpu[i];
+      cpuBars.children[i].style.height=Math.max(2,v)+'%';
+      cpuBars.children[i].classList.toggle('hot',v>78);
+    }
+    ram.v=walk(ram.v,180,3600,13600);
+    ramFill.style.width=(ram.v/16384*100).toFixed(1)+'%';
+    ramVal.textContent=Math.round(ram.v)+' MB / 16384 MB';
+  },260);
+  setI(()=>{
+    procsEl.textContent='';
+    for(const p of procs){
+      p.v=walk(p.v,3.4,0.4,44);
+      const r=document.createElement('div'); r.className='pr';
+      const a=document.createElement('span'); a.textContent=p.n;
+      const b=document.createElement('b'); b.textContent=p.pid+' · '+p.v.toFixed(1)+'%';
+      r.appendChild(a); r.appendChild(b); procsEl.appendChild(r);
+    }
+    procs.sort((x,y)=>y.v-x.v);
+  },1500);
+  setI(()=>{
+    const d=net.dn[net.dn.length-1], u=net.up[net.up.length-1];
+    net.dn.push(walk(d,7,0.4,46)); net.dn.shift();
+    net.up.push(walk(u,4,0.2,26)); net.up.shift();
+    net.dnT+=d*1400; net.upT+=u*1400;
+    dnTot.textContent=fmt(net.dnT); upTot.textContent=fmt(net.upT);
+  },120);
+  setI(()=>{
+    const now=new Date();
+    const hh=String(now.getHours()).padStart(2,'0');
+    const mm=String(now.getMinutes()).padStart(2,'0');
+    const ss=String(now.getSeconds()).padStart(2,'0');
+    tbclock.textContent=hh+':'+mm+':'+ss;
+    clockTime.textContent=hh+':'+mm+':'+ss;
+    clockDate.textContent=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+    upSecs++;
+    uptimeEl.textContent=Math.floor(upSecs/3600)+'h '+(Math.floor(upSecs/60)%60)+'m '+(upSecs%60)+'s';
+    batt=walk(batt,0.35,42,99);
+    const f=Math.round(batt/10);
+    tbbatt.textContent='['+'|'.repeat(f)+'\u00a0'.repeat(10-f)+'] '+Math.round(batt)+'%';
+  },1000);
+  const now=new Date();
+  clockDate.textContent=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+}
+
+/* ============ drawing loop ============ */
+loops.push(function(t){
+  if(!uiLive) return;
+  if(t-lastDraw<33) return;
+  lastDraw=t;
+  if(netCtx){
+    const w=280,h=62;
+    netCtx.clearRect(0,0,w,h);
+    netCtx.strokeStyle='rgba(0,229,255,.18)'; netCtx.lineWidth=1;
+    for(let y=12;y<h;y+=12){ netCtx.beginPath(); netCtx.moveTo(0,y+.5); netCtx.lineTo(w,y+.5); netCtx.stroke(); }
+    netCtx.beginPath(); netCtx.moveTo(0,h);
+    for(let i=0;i<net.dn.length;i++) netCtx.lineTo(i*(w/(net.dn.length-1)), h-(net.dn[i]/46)*h);
+    netCtx.lineTo(w,h); netCtx.closePath();
+    netCtx.fillStyle='rgba(0,229,255,.16)'; netCtx.fill();
+    netCtx.beginPath();
+    for(let i=0;i<net.dn.length;i++){
+      const x=i*(w/(net.dn.length-1)), y=h-(net.dn[i]/46)*h;
+      if(i) netCtx.lineTo(x,y); else netCtx.moveTo(x,y);
+    }
+    netCtx.strokeStyle='#00e5ff'; netCtx.lineWidth=1; netCtx.stroke();
+  }
+  if(globeCtx){
+    const w=280,h=150,cx=w/2,cy=h/2,R=54;
+    globeCtx.clearRect(0,0,w,h);
+    globeCtx.strokeStyle='rgba(255,143,0,.35)'; globeCtx.lineWidth=1;
+    globeCtx.beginPath(); globeCtx.arc(cx,cy,R,0,Math.PI*2); globeCtx.stroke();
+    globeCtx.strokeStyle='rgba(255,143,0,.16)';
+    for(let k=1;k<4;k++){
+      const rx=Math.abs(Math.cos(globeAng+k*0.8))*R;
+      globeCtx.beginPath(); globeCtx.ellipse(cx,cy,Math.max(rx,0.5),R,0,0,Math.PI*2); globeCtx.stroke();
+    }
+    for(let k=-2;k<=2;k++){
+      const y=cy+k*(R/2.6), rx=Math.sqrt(Math.max(0,R*R-(y-cy)*(y-cy)));
+      globeCtx.beginPath(); globeCtx.ellipse(cx,y,rx,3.2,0,0,Math.PI*2); globeCtx.stroke();
+    }
+    globeCtx.strokeStyle='rgba(0,229,255,.45)';
+    for(const p of PINS){
+      const lon=(p.lon*Math.PI/180)+globeAng;
+      const z=Math.cos(lon)*Math.cos(p.lat*Math.PI/180);
+      if(z<=0) continue;
+      const x=cx+Math.sin(lon)*R*Math.cos(p.lat*Math.PI/180);
+      const y=cy-Math.sin(p.lat*Math.PI/180)*R;
+      globeCtx.beginPath();
+      globeCtx.moveTo(cx,cy+R*0.55);
+      globeCtx.quadraticCurveTo((cx+x)/2+(x-cx)*0.35,(cy+R*0.55+y)/2-18,x,y);
+      globeCtx.stroke();
+      const pr=1.6+((t/90)%1)*2.4;
+      globeCtx.beginPath(); globeCtx.arc(x,y,pr,0,Math.PI*2);
+      globeCtx.strokeStyle='rgba(255,143,0,.9)'; globeCtx.stroke();
+      globeCtx.fillStyle='#ff8f00'; globeCtx.beginPath(); globeCtx.arc(x,y,1.4,0,Math.PI*2); globeCtx.fill();
+      globeCtx.strokeStyle='rgba(0,229,255,.45)';
+    }
+  }
+  globeAng+=0.0032;
+});
+
+/* ============ restart ============ */
+function resetAll(){
+  clearAll();
+  booting=false; uiLive=false;
+  logEl.style.display='none'; logEl.textContent='';
+  title.style.display='none';
+  titlebox.className=''; stopGlitch();
+  ui.classList.remove('live');
+  PANEL_ORDER.forEach(id=>{ const el=$(id); if(el) el.classList.remove('in'); });
+  erows.querySelectorAll('.erow').forEach(r=>r.classList.remove('in'));
+  for(const row of kbd.children){ row.style.transition='none'; row.style.width='0'; }
+  center.style.transition='none'; center.style.clipPath='inset(0 50% 0 50%)';
+  welcome.style.opacity='0'; welcome.style.transition='none';
+  buf.textContent=''; cmdtext.textContent='';
+  cpuBars.textContent=''; procsEl.textContent='';
+  grid.classList.remove('half');
+  upSecs=0; batt=87; globeAng=0;
+  net.upT=0; net.dnT=0;
+  if(A.ok&&A.ctx&&A.ctx.state==='suspended'){ try{A.ctx.resume();}catch(e){} }
+  gate.style.display='flex';
+}
+function restart(){ resetAll(); }
+
+/* ============ events ============ */
+gate.addEventListener('click',()=>{
+  gate.style.display='none';
+  initAudio();
+  startBoot();
+});
+document.addEventListener('visibilitychange',()=>{
+  paused=document.hidden;
+  if(A.ok&&A.ctx){ try{ document.hidden?A.ctx.suspend():A.ctx.resume(); }catch(e){} }
+});
+let rt=null;
+window.addEventListener('resize',()=>{
+  fit();
+  clearTimeout(rt);
+  rt=setTimeout(()=>{ initCanvases(); },120);
+});
+
+/* ============ init ============ */
+buildKeyboard();
+buildExplorer();
+initCanvases();
+fit();
+rafId=requestAnimationFrame(frame);
+})();
+</script>
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  if (q.get('auto') !== '1') return;
+
+  var gate = document.getElementById('gate');
+  var fire = function(){ try{ gate.click(); }catch(e){} };
+
+  requestAnimationFrame(fire);
+
+  var evs = ['pointerdown','pointermove','keydown','wheel'];
+  var unlock = function(){ fire(); };
+  var disarm = function(){
+    evs.forEach(function(ev){ window.removeEventListener(ev, unlock); });
+  };
+
+  evs.forEach(function(ev){ window.addEventListener(ev, unlock, { passive: true }); });
+  window.addEventListener('pointerdown', disarm, { once: true });
+  window.addEventListener('keydown', disarm, { once: true });
+})();
+</script>
+</body>
+</html>
