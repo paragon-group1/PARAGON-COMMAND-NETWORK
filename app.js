@@ -7,6 +7,35 @@ const title = $('title'), titlebox = $('titlebox'), gwrap = $('gwrap');
 const enterBtn = $('enterBtn'), closeBtn = $('closeBtn'), editBtn = $('editBtn');
 const hudClock = $('hudClock'), latEl = $('lat');
 
+/* ---------- URLs directas (CodePen) ---------- */
+const ASSET_BASE = 'https://raw.githubusercontent.com/paragon-group1/PARAGON-COMMAND-NETWORK/main/assets/';
+document.querySelectorAll('[src^="assets/"]').forEach(el=>{
+  el.setAttribute('src', ASSET_BASE + el.getAttribute('src').slice(7));
+});
+document.querySelectorAll('[poster^="assets/"]').forEach(el=>{
+  el.setAttribute('poster', ASSET_BASE + el.getAttribute('poster').slice(7));
+});
+
+/* respaldo visual mientras subes los archivos reales */
+const ph = n => 'https://picsum.photos/seed/paragon-' + (n || 'x') + '/1200/900';
+document.querySelectorAll('img:not([data-fb])').forEach(img=>{
+  img.addEventListener('error', ()=>{
+    if(img.dataset.ph) return;
+    img.dataset.ph = '1';
+    img.src = ph((img.getAttribute('src') || '').split('/').pop().replace(/\.\w+$/, ''));
+  });
+});
+const heroVid = document.querySelector('.hero-listing__media-video');
+if(heroVid){
+  heroVid.querySelectorAll('source').forEach(s=>{
+    s.addEventListener('error', ()=>{
+      if(heroVid.dataset.fb) return;
+      heroVid.dataset.fb = '1';
+      heroVid.setAttribute('src','https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
+    });
+  });
+}
+
 /* ---------- reloj ---------- */
 function hudTick(){
   const d = new Date(), p = n => String(n).padStart(2,'0');
