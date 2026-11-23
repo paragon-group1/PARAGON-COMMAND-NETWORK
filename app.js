@@ -190,6 +190,30 @@ const LOG = [
 "Security policy loaded: Seatbelt sandbox policy (Sandbox)",
 "calling mpo_policy_init for Quarantine",
 "Security policy loaded: Quarantine policy (Quarantine)",
+"verify: checking kernel signature (xnu-1699.22.73~1)",
+"verify: kernel text hash 0x9f3c...a71d OK",
+"verify: sealed system volume SHA-256 verified",
+"verify: loading trust cache (214 entries)",
+"verify: kext com.paragon.paragonFSCompressionTypeZlib validado",
+"verify: kext com.paragon.paragonTrololoBootScreen validado",
+"verify: sandbox profile 'boot' compilado",
+"verify: entitlement de plataforma aceptado",
+"verify: secure enclave handshake iniciado",
+"verify: secure enclave attestation 0x7d21c4f9 OK",
+"verify: cadena de confianza completa",
+"verify: montando /dev/disk0s2 en modo lectura",
+"verify: fsck_paragon: journal replay 0 pendientes",
+"verify: APFS snapshot 0x4a91e2 sellado",
+"verify: root hash coincide con sello de arranque",
+"verify: cargando tabla de particiones GUID",
+"verify: firma de arranque validada (EK-2048)",
+"verify: politica de cuarentena activa",
+"verify: canal IPC con kernel establecido",
+"verify: asignando puerto de depuracion 0x1f4",
+"verify: reloj monotonico sincronizado",
+"verify: entropia inicial 4096 bits recogida",
+"verify: driver de red wl0 registrado",
+"verify: verificacion de integridad completada",
 "Copyright (c) 1982, 1986, 1989, 1991, 1993, 2015",
 "The Regents of the University of Adelaide. All rights reserved.",
 "HN_ Framework successfully initialized",
@@ -252,22 +276,78 @@ const LOG = [
 ];
 const LAST = LOG.length - 1;
 
+/* ---------- tramo de verificación (se localiza solo) ---------- */
+const V_START = LOG.findIndex(l => l.startsWith('verify: '));
+let V_END = V_START;
+if(V_START >= 0){
+  while(LOG[V_END + 1] && LOG[V_END + 1].startsWith('verify: ')) V_END++;
+}
+
 function delayFor(i){
   if(i === 0 || i === 1) return Math.pow(1-(i/1000),3)*25;
   if(i === 2) return 500;
-  if(i === LAST-2 || i === LAST-1) return 300;
-  if(i >= 5 && i <= 24) return 30;
-  if(i === 25) return 400;
-  if(i === 42) return 300;
-  if(i >= 43 && i <= 81) return 25;
-  if(i === 83) return 25;
+  if(V_START >= 0 && i >= V_START - 1){
+    if(i === V_START) return 260;
+    if(i > V_START && i <= V_END) return 50 + ((i*29) % 60);
+    if(i === V_END + 1) return 320;
+    if(i >= V_END + 2 && i <= V_END + 4) return 30;
+    if(i === V_END + 5) return 400;
+    if(i === V_END + 22) return 300;
+    if(i >= V_END + 6 && i <= LAST - 3) return 25;
+    if(i === LAST - 2 || i === LAST - 1) return 300;
+    if(i === LAST) return 25;
+  }
+  if(i >= 5 && i <= 20) return 30;
   return Math.pow(1-(i/1000),3)*25;
 }
+
 function printLine(txt){
   const d = document.createElement('div');
   d.textContent = txt;
   logEl.appendChild(d);
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+/* ---------- HUD de verificación ---------- */
+const bootHud = $('bootHud'), bootChips = $('bootChips'), bhPct = $('bhPct'), bhTitle = $('bhTitle');
+const CHIPS = [
+  'NÚCLEO SEGURO','FIRMA DE ARRANQUE','SANDBOX','INTEGRIDAD KEXT',
+  'CANAL CIFRADO','RAÍZ VERIFICADA','MONTAJE SSD','RED ENLAZADA','SISTEMAS EN LÍNEA'
+];
+const chipEls = [];
+const CHIP_AT = {};
+if(V_START >= 0 && V_END > V_START){
+  CHIPS.forEach((_, k)=>{
+    CHIP_AT[V_START + 1 + Math.round(k * (V_END - V_START - 1) / (CHIPS.length - 1))] = k;
+  });
+}
+
+function buildBootHud(){
+  bootChips.textContent = '';
+  chipEls.length = 0;
+  bhPct.textContent = '00%';
+  bhTitle.textContent = 'Verificación de sistemas';
+  bootHud.classList.remove('done');
+  CHIPS.forEach(t=>{
+    const d = document.createElement('div');
+    d.className = 'bchip';
+    d.appendChild(document.createElement('i'));
+    d.appendChild(document.createTextNode(t));
+    bootChips.appendChild(d);
+    chipEls.push(d);
+  });
+}
+
+function hudPct(i){
+  const span = V_END - V_START;
+  if(span <= 0) return;
+  const p = Math.max(0, Math.min(100, Math.round(((i - V_START) / span) * 100)));
+  bhPct.textContent = String(p).padStart(2,'0') + '%';
+  if(p >= 100){
+    bhPct.textContent = '100%';
+    bhTitle.textContent = 'Sistemas en línea verificados';
+    bootHud.classList.add('done');
+  }
 }
 
 /* ---------- glitch ---------- */
@@ -326,6 +406,7 @@ function startBoot(){
   boot.classList.remove('title-phase');
   boot.setAttribute('aria-hidden','false');
   logEl.textContent = '';
+  buildBootHud();
   logEl.style.display = 'block';
   title.style.display = 'none';
   titlebox.className = '';
@@ -337,6 +418,9 @@ function startBoot(){
     printLine(LOG[i]);
     if(i === 2) printLine('PARAGON STRIKE DIVISION Kernel version 4.0.0 boot at '+new Date().toString()+'; root:xnu-1699.22.73~1/RELEASE_X86_64');
     if(i === LAST) SFX.granted(); else SFX.stdout();
+    if(i >= V_START && i <= V_END) hudPct(i);
+    const ci = CHIP_AT[i];
+    if(ci !== undefined){ chipEls[ci].classList.add('ok'); SFX.key(); }
     const d = delayFor(i);
     i++;
     setT(step, d);
@@ -481,6 +565,7 @@ function exit(){
   title.style.display = 'none';
   titlebox.className = '';
   logEl.textContent = '';
+  bootHud.classList.remove('done');
   document.body.classList.remove('menu-open');
   SFX.denied();
   site.style.clipPath = 'inset(0 50% 0 50%)';
