@@ -792,3 +792,4 @@ body.menu-open .mobile-utility__icon--close{display:block}
     transform:translateY(calc(-50% - clamp(24px, 6vh, 72px)));
   }
 }
+.skip{ display:none !important; }
