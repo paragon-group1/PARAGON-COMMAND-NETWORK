@@ -802,3 +802,6 @@ body.menu-open .mobile-utility__icon--close{display:block}
 #editBtn, #editBar{ display:none !important; }
 .slot-add{ display:none !important; }
 #site.edit .media-slot{ outline:0 !important; }
+/* --- modo edición desactivado --- */
+#editBtn{ display:none !important; }
+.slot-add{ display:none !important; }
