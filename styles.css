@@ -712,3 +712,78 @@ body.menu-open .mobile-utility__icon--close{display:block}
   .core-side__status{ flex-direction:row; }
   .frame--bare{ display:none; }
 }
+/* ============================================================
+   LANDING · IDENTIDAD IZQUIERDA (display grande, escalonado)
+   ============================================================ */
+.core-side--left{
+  left:clamp(18px, 5vw, 96px);
+  width:min(38vw, 470px);
+  align-items:flex-start;
+  text-align:left;
+  gap:0;
+  border-left:1px solid rgba(206,166,84,.42);
+  padding-left:clamp(10px, 1.4vw, 22px);
+}
+.core-side--left::before{ display:none; }
+
+.core-side--left .core-side__title{
+  display:block;
+  font-size:clamp(34px, 4.6vw, 70px);
+  font-weight:800;
+  line-height:.88;
+  letter-spacing:.01em;
+  color:#f2ece0;
+  text-shadow:0 0 26px rgba(255,190,80,.16);
+  clip-path:inset(0 100% 0 0);
+  animation:wipe .85s cubic-bezier(.2,.85,.2,1) forwards;
+  animation-delay:var(--ld);
+}
+@keyframes wipe{ to{ clip-path:inset(0 -10% 0 0) } }
+
+.core-side--left .core-side__title .ch{
+  animation-delay:calc(var(--i) * 27ms + .30s);
+}
+
+.core-side__title--l2{
+  color:transparent;
+  -webkit-text-stroke:1.4px rgba(242,236,224,.7);
+  text-shadow:none;
+  padding-left:.34em;
+  margin-top:.08em;
+}
+.core-side__title--l2 .ch{ animation-name:chOutLeft; }
+
+@keyframes chOutLeft{
+  0%{ opacity:0; transform:translate3d(-14px,0,0) scaleY(.6); filter:blur(7px); }
+  60%{ opacity:1; filter:blur(0); }
+  100%{ opacity:1; transform:none; filter:none; }
+}
+
+.core-side__title--l3{
+  font-size:clamp(13px, 1.28vw, 20px);
+  font-weight:700;
+  letter-spacing:.5em;
+  color:#dcc78f;
+  padding-left:.95em;
+  margin-top:.7em;
+  clip-path:none;
+  animation:none;
+}
+.core-side__title--l3 .ch{ animation-duration:.5s; }
+
+.core-side--left .core-side__line{ margin-top:1.1em; }
+
+@media (max-width:1100px){
+  .core-side--left{
+    border-left:0;
+    padding-left:0;
+    width:100%;
+    max-width:360px;
+    align-items:center;
+    text-align:center;
+  }
+  .core-side--left .core-side__title{ font-size:clamp(28px, 7.6vw, 46px); }
+  .core-side__title--l2,
+  .core-side__title--l3{ padding-left:0; }
+  .core-side__title--l3{ font-size:clamp(11px, 2.6vw, 14px); letter-spacing:.42em; }
+}
