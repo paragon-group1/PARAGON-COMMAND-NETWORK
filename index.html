@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="image" href="assets/paragon-emblem-2026.png">
+<link rel="preload" as="video" href="assets/hero-1.mp4" type="video/mp4">
 
 <link rel="icon" href="assets/paragon-emblem-2026.png">
 <link rel="apple-touch-icon" href="assets/paragon-emblem-2026.png">
@@ -368,13 +369,19 @@
         <div class="hero-box-container">
           <ul class="hero-listing" id="heroTrack">
 
+            <!-- DIAPOSITIVA 1 · VIDEO DE FONDO + TITULAR -->
             <li class="hero-listing__item" data-media-type="video">
               <div class="hero-listing__overlay hero-listing__overlay--one"></div>
               <div class="hero-listing__overlay hero-listing__overlay--two"></div>
               <div class="hero-listing__overlay hero-listing__overlay--three"></div>
               <div class="hero-listing__media-box media-slot" data-slot="hero-1">
-                <video class="hero-listing__media-video" autoplay loop muted playsinline poster="assets/hero-1.jpg">
+                <video class="hero-listing__media-video"
+                       autoplay loop muted playsinline
+                       preload="auto"
+                       poster="assets/hero-1.jpg"
+                       aria-hidden="true" tabindex="-1">
                   <source src="assets/hero-1.mp4" type="video/mp4">
+                  <img class="hero-listing__media-image" src="assets/hero-1.jpg" alt="">
                 </video>
                 <button class="slot-add" type="button">REPLACE</button>
               </div>
@@ -392,12 +399,20 @@
               </button>
             </li>
 
+            <!-- DIAPOSITIVA 2 -->
             <li class="hero-listing__item" data-media-type="image">
               <div class="hero-listing__overlay hero-listing__overlay--one"></div>
               <div class="hero-listing__overlay hero-listing__overlay--two"></div>
               <div class="hero-listing__overlay hero-listing__overlay--three"></div>
               <div class="hero-listing__media-box media-slot" data-slot="hero-2">
                 <img class="hero-listing__media-image" src="assets/hero-2.jpg" alt="">
+                <!-- Para pasar esta diapositiva a video, borra la línea de arriba
+                     y descomenta este bloque. Cambia data-media-type a "video".
+                <video class="hero-listing__media-video" autoplay loop muted playsinline preload="auto" poster="assets/hero-2.jpg" aria-hidden="true" tabindex="-1">
+                  <source src="assets/hero-2.mp4" type="video/mp4">
+                  <img class="hero-listing__media-image" src="assets/hero-2.jpg" alt="">
+                </video>
+                -->
                 <button class="slot-add" type="button">REPLACE</button>
               </div>
               <div class="hero-listing__item-container container container--medium">
@@ -411,12 +426,20 @@
               </div>
             </li>
 
+            <!-- DIAPOSITIVA 3 -->
             <li class="hero-listing__item" data-media-type="image">
               <div class="hero-listing__overlay hero-listing__overlay--one"></div>
               <div class="hero-listing__overlay hero-listing__overlay--two"></div>
               <div class="hero-listing__overlay hero-listing__overlay--three"></div>
               <div class="hero-listing__media-box media-slot" data-slot="hero-3">
                 <img class="hero-listing__media-image" src="assets/hero-3.jpg" alt="">
+                <!-- Para pasar esta diapositiva a video, borra la línea de arriba
+                     y descomenta este bloque. Cambia data-media-type a "video".
+                <video class="hero-listing__media-video" autoplay loop muted playsinline preload="auto" poster="assets/hero-3.jpg" aria-hidden="true" tabindex="-1">
+                  <source src="assets/hero-3.mp4" type="video/mp4">
+                  <img class="hero-listing__media-image" src="assets/hero-3.jpg" alt="">
+                </video>
+                -->
                 <button class="slot-add" type="button">REPLACE</button>
               </div>
               <div class="hero-listing__item-container container container--medium">
