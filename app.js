@@ -1,10 +1,13 @@
 (function(){
 "use strict";
 
+/* Modo edición desactivado: el sitio es de solo lectura.
+   El botón EDIT y los REPLACE quedan ocultos por CSS y aquí no hay cableado. */
+
 const $ = id => document.getElementById(id);
 const site = $('site'), boot = $('boot'), logEl = $('log');
 const title = $('title'), titlebox = $('titlebox'), gwrap = $('gwrap');
-const enterBtn = $('enterBtn'), closeBtn = $('closeBtn'), editBtn = $('editBtn');
+const enterBtn = $('enterBtn'), closeBtn = $('closeBtn');
 const hudClock = $('hudClock'), latEl = $('lat');
 
 /* ---------- URLs directas (CodePen) ---------- */
@@ -585,7 +588,6 @@ function exit(){
   booting = false;
   clearAll();
   closeLogin();
-  setEdit(false);
   stopHero();
   stopGlitch();
   boot.classList.remove('on');
@@ -713,87 +715,6 @@ function fMove(dir){
 }
 $('featNext').addEventListener('click', ()=> fMove(1));
 $('featPrev').addEventListener('click', ()=> fMove(-1));
-
-/* ---------- modo edición ---------- */
-let edit = false;
-function setEdit(v){
-  edit = v;
-  site.classList.toggle('edit', v);
-  editBtn.classList.toggle('act', v);
-  editBtn.textContent = v ? 'DONE' : 'EDIT';
-}
-editBtn.addEventListener('click', ()=> setEdit(!edit));
-
-let dbP = null;
-function db(){
-  if(dbP) return dbP;
-  dbP = new Promise((res, rej)=>{
-    const r = indexedDB.open('paragon-cr', 1);
-    r.onupgradeneeded = ()=> r.result.createObjectStore('m');
-    r.onsuccess = ()=> res(r.result);
-    r.onerror = ()=> rej(r.error);
-  });
-  return dbP;
-}
-async function save(k, blob){
-  try{ (await db()).transaction('m','readwrite').objectStore('m').put(blob, k); }catch(e){}
-}
-async function loadAll(){
-  try{
-    const d = await db();
-    return await new Promise(res=>{
-      const tx = d.transaction('m','readonly'), st = tx.objectStore('m');
-      const gv = st.getAll(), gk = st.getAllKeys();
-      tx.oncomplete = ()=> res(gk.result.map((k,i)=>[k, gv.result[i]]));
-      tx.onerror = ()=> res([]);
-    });
-  }catch(e){ return []; }
-}
-function paintSlot(slot, blob){
-  if(!slot || !blob) return;
-  const old = slot.querySelector('img,video');
-  const url = URL.createObjectURL(blob);
-  const el = (blob.type || '').startsWith('video')
-    ? Object.assign(document.createElement('video'), {autoplay:true, loop:true, muted:true, playsInline:true})
-    : document.createElement('img');
-  el.src = url;
-  if(el.tagName === 'IMG') el.alt = '';
-  if(old) old.remove();
-  slot.insertBefore(el, slot.firstChild);
-  if(old && old.src && old.src.startsWith('blob:')) URL.revokeObjectURL(old.src);
-}
-
-document.querySelectorAll('.media-slot').forEach(slot=>{
-  const key = slot.dataset.slot;
-  const btn = slot.querySelector('.slot-add');
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*,video/*';
-  input.hidden = true;
-  slot.appendChild(input);
-
-  btn.addEventListener('click', e => { e.stopPropagation(); input.click(); });
-  input.addEventListener('change', ()=>{
-    const f = input.files && input.files[0];
-    if(!f) return;
-    paintSlot(slot, f); save(key, f);
-  });
-
-  slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag'); });
-  slot.addEventListener('dragleave', ()=> slot.classList.remove('drag'));
-  slot.addEventListener('drop', e => {
-    e.preventDefault(); slot.classList.remove('drag');
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if(!f) return;
-    paintSlot(slot, f); save(key, f);
-  });
-});
-
-loadAll().then(list=>{
-  list.forEach(([k, blob])=>{
-    paintSlot(document.querySelector('.media-slot[data-slot="'+k+'"]'), blob);
-  });
-});
 
 /* ---------- varios ---------- */
 let rt = null;
