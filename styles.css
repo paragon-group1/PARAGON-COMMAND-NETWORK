@@ -598,3 +598,117 @@ body.menu-open .mobile-utility__icon--close{display:block}
 #boot.title-phase .gch{
   text-shadow:0 0 26px #000,0 0 10px #000,0 0 4px #000
 }
+/* ============================================================
+   LANDING · MARCO DE MANDO (identidad izq. / estado der.)
+   ============================================================ */
+.core{ position:relative; }
+
+.frame--bare{
+  width:clamp(104px, 9vw, 140px);
+  height:clamp(52px, 4.8vw, 70px);
+  min-height:0;
+  aspect-ratio:auto;
+  padding:0;
+  background:none;
+}
+.frame--bare img{ display:none; }
+
+.core-side{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:clamp(180px, 22vw, 300px);
+  display:flex;
+  flex-direction:column;
+  gap:.5em;
+  font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  font-size:clamp(9.5px, .72vw, 12px);
+  letter-spacing:.32em;
+  text-transform:uppercase;
+  color:rgba(228,222,206,.72);
+  pointer-events:none;
+  z-index:3;
+}
+.core-side--left{ left:clamp(14px, 4.5vw, 90px); align-items:flex-start; text-align:left; }
+.core-side--right{ right:clamp(14px, 4.5vw, 90px); align-items:flex-end; text-align:right; }
+
+.core-side::before{
+  content:"";
+  width:100%;
+  height:1px;
+  margin-bottom:.85em;
+  background:linear-gradient(90deg, rgba(206,166,84,.9), rgba(206,166,84,0));
+  transform-origin:left center;
+  animation:ruleIn .9s .35s ease both;
+}
+.core-side--right::before{
+  background:linear-gradient(270deg, rgba(206,166,84,.9), rgba(206,166,84,0));
+  transform-origin:right center;
+}
+@keyframes ruleIn{ from{ transform:scaleX(0); opacity:0 } to{ transform:scaleX(1); opacity:1 } }
+
+.core-side__title{
+  font-size:clamp(11px, .95vw, 16px);
+  letter-spacing:.30em;
+  line-height:1.5;
+  color:#f0e9d7;
+}
+.core-side__title .ch{
+  display:inline-block;
+  opacity:0;
+  will-change:transform,filter,opacity;
+  animation:chInLeft .62s cubic-bezier(.16,.8,.24,1) both;
+  animation-delay:calc(var(--i) * 30ms + .5s);
+}
+.core-side--right .core-side__title .ch{
+  animation-name:chInRight;
+  animation-delay:calc(var(--i) * 30ms + .62s);
+}
+@keyframes chInLeft{
+  0%{ opacity:0; transform:translate3d(-16px,0,0) scaleY(.55); filter:blur(7px); color:#ffd98a; }
+  55%{ opacity:1; filter:blur(0); color:#ffd98a; text-shadow:0 0 16px rgba(255,190,80,.55); }
+  100%{ opacity:1; transform:none; filter:none; color:#f0e9d7; text-shadow:none; }
+}
+@keyframes chInRight{
+  0%{ opacity:0; transform:translate3d(16px,0,0) scaleY(.55); filter:blur(7px); color:#ffd98a; }
+  55%{ opacity:1; filter:blur(0); color:#ffd98a; text-shadow:0 0 16px rgba(255,190,80,.55); }
+  100%{ opacity:1; transform:none; filter:none; color:#f0e9d7; text-shadow:none; }
+}
+
+.core-side__line{
+  opacity:0;
+  animation:lineIn .55s ease both;
+  animation-delay:calc(1.15s + var(--n) * 110ms);
+}
+@keyframes lineIn{ from{ opacity:0; transform:translateY(4px) } to{ opacity:1; transform:none } }
+
+.core-side__status{ display:inline-flex; align-items:center; gap:.6em; color:#8fd6a4; }
+.core-side--right .core-side__status{ flex-direction:row-reverse; }
+.core-side__dot{
+  width:5px; height:5px; border-radius:50%;
+  background:#6ee08c;
+  box-shadow:0 0 8px rgba(110,224,140,.9);
+  animation:pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse{ 0%,100%{ opacity:1 } 50%{ opacity:.25 } }
+
+@media (max-width:1100px){
+  .core-side{
+    position:static;
+    transform:none;
+    width:100%;
+    max-width:340px;
+    align-items:center;
+    text-align:center;
+    margin:1.4rem 0 .4rem;
+  }
+  .core-side::before{
+    width:60%;
+    margin:0 auto .7em;
+    background:linear-gradient(90deg,transparent,rgba(206,166,84,.8),transparent);
+    transform-origin:center;
+  }
+  .core-side--right{ order:9; }
+  .core-side__status{ flex-direction:row; }
+  .frame--bare{ display:none; }
+}
