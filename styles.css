@@ -793,3 +793,8 @@ body.menu-open .mobile-utility__icon--close{display:block}
   }
 }
 .skip{ display:none !important; }
+#landing #skipBtn,
+#landing .skip{
+  display:none !important;
+  visibility:hidden !important;
+}
