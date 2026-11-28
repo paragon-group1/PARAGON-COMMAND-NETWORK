@@ -521,11 +521,12 @@ function phase3(){
   boot.classList.remove('on');
   boot.classList.remove('title-phase');
   boot.setAttribute('aria-hidden','true');
+  boot.style.display = 'none';
+  site.style.clipPath = 'inset(0 0 0 0)';
   site.classList.add('on');
   site.setAttribute('aria-hidden','false');
   site.scrollTop = 0;
   SFX.expand();
-  requestAnimationFrame(()=>{ site.style.clipPath = 'inset(0 0 0 0)'; });
   startHero();
 }
 
@@ -643,8 +644,10 @@ function exit(){
   bootHud.classList.remove('done');
   document.body.classList.remove('menu-open');
   SFX.denied();
-  site.style.clipPath = 'inset(0 50% 0 50%)';
-  setTimeout(()=>{ site.classList.remove('on'); site.setAttribute('aria-hidden','true'); }, 560);
+ site.classList.remove('on');
+  site.setAttribute('aria-hidden','true');
+  site.style.clipPath = '';
+  setTimeout(()=>{ boot.style.display = ''; }, 560);
   document.body.classList.remove('locked');
   enterBtn.focus();
 }
