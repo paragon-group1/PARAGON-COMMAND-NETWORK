@@ -199,9 +199,9 @@ body.locked #login{visibility:hidden}
 /* ===================== SITIO ===================== */
 #site{position:fixed;inset:0;z-index:100;display:none;background:#fff;color:#333;
   overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
-  clip-path:inset(0 50% 0 50%);transition:clip-path .55s cubic-bezier(.2,.8,.2,1);
   font-family:var(--barlow);letter-spacing:normal;font-size:16px;line-height:1.5}
-#site.on{display:block}
+#site.on{display:block;clip-path:inset(0 0 0 0);
+  transition:clip-path .55s cubic-bezier(.2,.8,.2,1)}
 .site-inner{position:relative;z-index:1}
 .site-wm{position:fixed;inset:0;z-index:0;pointer-events:none;
   background-image:var(--emblem);background-repeat:no-repeat;
