@@ -502,21 +502,6 @@ function startBoot(){
   })();
 }
 
-function phase2(){
-  fadeBootAudio(1400);
-  booting = false;
-  logEl.style.display = 'none';
-  logEl.textContent = '';
-  SFX.theme();
-  boot.classList.add('title-phase');
-  title.style.display = 'flex';
-  setT(()=>{ titlebox.classList.add('visible'); }, 400);
-  setT(()=>{ titlebox.classList.add('filled'); }, 600);
-  setT(()=>{ titlebox.classList.add('bordered'); }, 700);
-  setT(()=>{ titlebox.classList.remove('filled','bordered'); titlebox.classList.add('glitch'); startGlitch(); }, 1000);
-  setT(()=>{ titlebox.classList.remove('glitch'); stopGlitch(); }, 1500);
-  setT(()=>{ title.style.display = 'none'; phase3(); }, 2500);
-}
 
 function phase3(){
   boot.classList.remove('on');
