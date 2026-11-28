@@ -9,6 +9,8 @@ const site = $('site'), boot = $('boot'), logEl = $('log');
 const title = $('title'), titlebox = $('titlebox'), gwrap = $('gwrap');
 const enterBtn = $('enterBtn'), closeBtn = $('closeBtn');
 const hudClock = $('hudClock'), latEl = $('lat');
+const bootAudio = $('bootAudio');
+const BOOT_AUDIO_VOL = .55;
 
 /* ---------- URLs directas (CodePen) ---------- */
 const ASSET_BASE = 'https://raw.githubusercontent.com/paragon-group1/PARAGON-COMMAND-NETWORK/main/assets/';
@@ -57,6 +59,46 @@ document.querySelectorAll('img[data-fb]').forEach(img=>{
 });
 
 /* ---------- audio ---------- */
+let bootAudioFade = null;
+
+function playBootAudio(){
+  if(!bootAudio) return;
+  clearInterval(bootAudioFade); bootAudioFade = null;
+  try{
+    bootAudio.pause();
+    bootAudio.currentTime = 0;
+    bootAudio.volume = 0;
+    const p = bootAudio.play();
+    if(p && p.catch) p.catch(()=>{});
+    const t0 = performance.now();
+    bootAudioFade = setInterval(()=>{
+      const k = Math.min(1, (performance.now() - t0) / 450);
+      bootAudio.volume = BOOT_AUDIO_VOL * k;
+      if(k >= 1){ clearInterval(bootAudioFade); bootAudioFade = null; }
+    }, 30);
+  }catch(e){}
+}
+
+function fadeBootAudio(ms){
+  if(!bootAudio || bootAudio.paused) return;
+  clearInterval(bootAudioFade); bootAudioFade = null;
+  const v0 = bootAudio.volume, t0 = performance.now(), dur = ms || 1200;
+  bootAudioFade = setInterval(()=>{
+    const k = Math.min(1, (performance.now() - t0) / dur);
+    bootAudio.volume = Math.max(0, v0 * (1 - k));
+    if(k >= 1){
+      clearInterval(bootAudioFade); bootAudioFade = null;
+      try{ bootAudio.pause(); bootAudio.currentTime = 0; }catch(e){}
+    }
+  }, 30);
+}
+
+function stopBootAudio(){
+  if(!bootAudio) return;
+  clearInterval(bootAudioFade); bootAudioFade = null;
+  try{ bootAudio.pause(); bootAudio.currentTime = 0; bootAudio.volume = BOOT_AUDIO_VOL; }catch(e){}
+}
+
 const A = {ctx:null, master:null, comp:null, verb:null, verbGain:null, noise:null, ok:false};
 function makeImpulse(ctx, dur){
   const len = Math.floor(ctx.sampleRate*dur), b = ctx.createBuffer(2, len, ctx.sampleRate);
@@ -434,6 +476,7 @@ let booting = false;
 function startBoot(){
   if(booting) return;
   booting = true;
+  playBootAudio();
   boot.classList.add('on');
   boot.classList.remove('title-phase');
   boot.setAttribute('aria-hidden','false');
@@ -460,6 +503,7 @@ function startBoot(){
 }
 
 function phase2(){
+  fadeBootAudio(1400);
   booting = false;
   logEl.style.display = 'none';
   logEl.textContent = '';
@@ -587,6 +631,7 @@ function exit(){
   open = false; authed = false; tries = 0;
   booting = false;
   clearAll();
+  stopBootAudio();
   closeLogin();
   stopHero();
   stopGlitch();
@@ -723,6 +768,10 @@ window.addEventListener('resize', ()=>{
   rt = setTimeout(()=>{ fIdx = 0; featList.style.transform = 'none'; }, 160);
 });
 document.addEventListener('visibilitychange', ()=>{
+  if(bootAudio && !bootAudio.paused){
+    if(document.hidden) bootAudio.pause();
+    else bootAudio.play().catch(()=>{});
+  }
   if(!A.ok || !A.ctx) return;
   try{ document.hidden ? A.ctx.suspend() : A.ctx.resume(); }catch(e){}
 });
